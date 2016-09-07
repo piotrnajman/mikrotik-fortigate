@@ -1,0 +1,58 @@
+#!/bin/bash
+
+#
+# This script convert selected Mikrotik addresslists form rsc
+# file to FortiGate CLI commands creates firewall address entrys.
+#
+# In the input rsc script one item must be in one line (without \),
+# edit rsc and remove endlines with \ before using this script.
+#
+# Created Sep 7, 2016, author Piotr Najman
+# Version 1.0.1
+#
+# Syntax: alst2address addresslists_filename addresslist_name
+#
+
+
+#
+# Vars
+#
+DMASK="/32"
+
+#
+# Converting
+#
+echo "config firewall address"
+cat $1 | grep -i "$2" | grep -v disabled=yes | while read LINE
+do
+    #
+    # get ip address
+    M="${LINE#*address=}"
+    IP="${M%% *}"
+    #
+    # check if comment exists
+    cx="${LINE%%comment*}"
+    [[ $cx = $LINE ]] && CEX=-1 || CEX=${#cx}
+    #
+    # check is subnet
+    sx="${LINE%%/*}"
+    [[ $sx = $LINE ]] && SEX=-1 || SEX=${#sx}
+    #
+    # set ip mask
+    [[ "$SEX" -gt "-1" ]] && SUBNET="" || SUBNET=${DMASK}
+    #
+    # get comment if exists
+    if [ "$CEX" -gt "-1" ]; then
+        M="${LINE#*comment=}"
+	M="${M%% list=*}"
+        M="${M#*\"}"
+	COMMENT="${M%\"*}"
+    else
+	COMMENT=""
+    fi
+    echo "    edit \"$IP\"
+        set subnet $IP$SUBNET
+	set comment \"$COMMENT\"
+    next"
+done
+echo "end"

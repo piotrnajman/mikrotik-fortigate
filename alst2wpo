@@ -1,0 +1,48 @@
+#!/bin/bash
+
+#
+# This script convert selected Mikrotik addresslists form rsc
+# file to FortiGate CLI commands creates Web Profile Overrides.
+#
+# In the input rsc script one item must be in one line (without \),
+# edit rsc and remove endlines with \ before using this script.
+#
+# Created Sep 4, 2016, author Piotr Najman
+# Version 1.0.0
+#
+# Syntax: alst2wpo addresslists_filename addresslist_name orginal_profile new_profile
+#
+ 
+
+#
+# Vars
+#
+# WPO_EXPIRES = 365 days, max override time for ip scope
+#
+WPO_STATUS="enable"
+WPO_SCOPE="ip"
+WPO_EXPIRES=`date -d '365 days' "+%Y/%m/%d %H:%M:00"`
+WPO_INITIATOR="admin"
+
+COUNT=0
+
+
+#
+# Converting
+#
+echo "config webfilter override"
+cat $1 | grep -i "$2" | cut -d'=' -f 2 | cut -d' ' -f 1 | while read IP
+do 
+    COUNT=$((COUNT+1))
+echo "    edit $COUNT
+        set status $WPO_STATUS
+        set scope $WPO_SCOPE
+        set old-profile \"$3\"
+        set new-profile \"$4\"
+        set expires $WPO_EXPIRES
+        set initiator \"$WPO_INITIATOR\"
+        set ip $IP
+    next"
+#    echo $COUNT $LINE
+done
+echo "end"
