@@ -2,7 +2,8 @@
 
 #
 # This script convert selected Mikrotik addresslists form rsc
-# file to FortiGate CLI commands creates firewall address entrys.
+# file to FortiGate CLI commands creates firewall address entrys
+# and group entry.
 #
 # In the input rsc script one item must be in one line (without \),
 # edit rsc and remove endlines with \ before using this script.
@@ -18,17 +19,20 @@
 # Vars
 #
 DMASK="/32"
+AGRP=""
 
 #
 # Converting
 #
 echo "config firewall address"
-cat $1 | grep -i "$2" | grep -v disabled=yes | while read LINE
+cat $1 | grep -i "$2" | grep -v disabled=yes | \
+{ while read LINE
 do
     #
     # get ip address
     M="${LINE#*address=}"
     IP="${M%% *}"
+    AGRP="${AGRP} \"${IP}\""
     #
     # check if comment exists
     cx="${LINE%%comment*}"
@@ -56,3 +60,9 @@ do
     next"
 done
 echo "end"
+echo "config firewall addrgrp
+    edit \"$2\"
+        set member $AGRP
+    next
+end"
+}
