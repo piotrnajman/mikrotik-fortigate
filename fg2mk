@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+#
+# This script extract selected address lists in to rsc script and upload them to Mikrotik router.
+#
+# Requires addrgrp2alst.pl perl script and FG config with fiename schema YYYYMMMDD(.)* for example 20170317-FG100D-full-config 
+# If you have use static file name, set _today="" and  _confpfx="filename" 
+#
+# Created Mar 21, 2017, author Piotr Najman
+# Last modified Apr 7, 2017
+# Version 1.0.2
+#
+
+exec 1> >(/usr/bin/logger -t $(basename $0)) 2>&1
+
+set -o errexit
+set -o nounset
+
+#
+# var
+_ftp="/usr/bin/ftp"
+_workdir="/root/forti/"
+_confdir="/repo/fgconfs/"
+_confpfx="-FG100D2347542126-full-config"
+_today=$(date +%Y%m%d)
+_mkaddr='10.10.10.10'
+_mkuser='ftp_user'
+_mkpass='ftp_password'
+
+# if exist fg config file
+if [ -e ${_confdir}${_today}${_confpfx} ]; then
+    # copy fg config file to workdir
+    /bin/cp  ${_confdir}${_today}${_confpfx} ${_workdir}
+    # export fg addressgroups to mikrotik addresslists
+    /usr/bin/perl ${_workdir}addrgrp2alst.pl ${_workdir}${_today}${_confpfx} ${_workdir}exportedlist.rsc
+    # write rsc script header
+    /usr/bin/head -n 3 ${_workdir}exportedlist.rsc > ${_workdir}fgaddresslists.rsc
+    # extract selected addresslists from exported
+    /bin/grep -i "\"first_address_list\"" ${_workdir}exportedlist.rsc | sed -e 's/\\//g' | sed -e "s/comment/\\\ \ncomment/g"  >> ${_workdir}fgaddresslists.rsc
+    /bin/grep -i "\"another address list\"" ${_workdir}exportedlist.rsc | sed -e 's/\\//g' | sed -e "s/comment/\\\ \ncomment/g"  >> ${_workdir}fgaddresslists.rsc
+    # upload file to mikrotik router
+    if [ -x ${_ftp} ]; then
+        echo "
+	user ${_mkuser} ${_mkpass}
+	passiv
+	binary
+	put ${_workdir}fgaddresslists.rsc fgaddresslists.rsc 
+	bye"|${_ftp} -v -n ${_mkaddr}
+    fi
+    # garbage files
+    /bin/rm ${_workdir}${_today}${_confpfx} ${_workdir}exportedlist.rsc
+fi
